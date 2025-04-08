@@ -1,0 +1,63 @@
+---
+onboarding_task_1:
+  description: Capture and validate company details including {company}, {aliases},
+    {website}, and {social_media_handles} via the onboarding flow. Store these details
+    in a configuration repository for system-wide access.
+  expected_output: A structured configuration object containing validated company
+    details for use in subsequent tasks.
+  async_execution: false
+  agent: onboarding_expert
+news_scraping_task:
+  description: Scrape real-time mentions of {company} and its aliases from news articles,
+    blogs, review sites, and social media platforms. Use ScrapeWebsiteTool (customized
+    for news extraction) and ScrapeElementFromWebsiteTool to extract raw JSON data
+    of mentions without utilizing SeleniumScrapingTool.
+  expected_output: A collection of raw mention data (in JSON format) that includes
+    information from news, blogs, review sites, and social platforms.
+  async_execution: false
+  agent: news_scraping_specialist
+  context:
+  - onboarding_task_1
+cleaning_task:
+  description: Clean and normalize the raw mention data from {news_scraping_task}
+    by filtering irrelevant content and extracting necessary metadata fields such
+    as text, source, platform, URL, date, and author.
+  expected_output: A structured and cleaned JSON object with extracted metadata fields
+    ready for sentiment analysis.
+  async_execution: false
+  agent: data_cleaning_analyst
+  context:
+  - news_scraping_task
+sentiment_task:
+  description: Analyze the cleaned data from {cleaning_task} for sentiment and topic
+    classification. Utilize {sentiment_model_config} to assign sentiment values (positive,
+    neutral, negative) and sentiment scores, and classify mentions into topics like
+    product praise or complaint.
+  expected_output: Enriched mention data in JSON format including sentiment labels,
+    sentiment scores, and topic classifications.
+  async_execution: false
+  agent: sentiment_analysis_expert
+  context:
+  - cleaning_task
+sqlite_task:
+  description: Persist each processed mention record from {sentiment_task} into the
+    SQLite database using the provided schema. The schema should include fields such
+    as company, source, platform, URL, date, author, sentiment, sentiment_score, topic,
+    text, raw_json, and created_at.
+  expected_output: Confirmation that processed mention records have been successfully
+    inserted into the SQLite database.
+  async_execution: false
+  agent: sqlite_integration_specialist
+  context:
+  - sentiment_task
+dashboard_task:
+  description: Aggregate persisted data from the SQLite database to generate a dynamic
+    dashboard that displays overall reputation scores, sentiment trends, mention volume
+    per platform, and top quotes. Trigger alerts via email or Slack if negative sentiment
+    exceeds {neg_threshold}, and provide CSV/Excel export options for further analysis.
+  expected_output: A dashboard report (JSON or visual) with up-to-date metrics, trend
+    analysis data, and alert notifications if necessary.
+  async_execution: false
+  agent: dashboard_reporting_specialist
+  context:
+  - sqlite_task
