@@ -1,7 +1,0 @@
-streamlit
-requests
-sqlalchemy
-newsapi-python
-textblob
-openai
-python-dotenv
