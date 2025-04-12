@@ -11,11 +11,18 @@ os.makedirs(logs_dir, exist_ok=True)
 # Configure the main logger
 log_file = os.path.join(logs_dir, f'app_{datetime.now().strftime("%Y%m%d")}.log')
 
-# Create a custom formatter that includes timestamp, level, and module information
+# Create a custom formatter that includes timestamp, level, module information, and filename
 class CustomFormatter(logging.Formatter):
     def format(self, record):
         # Add the timestamp in a readable format
         record.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Extract filename from pathname if available
+        if hasattr(record, 'pathname') and record.pathname:
+            record.filename = os.path.basename(record.pathname)
+        else:
+            record.filename = 'unknown'
+            
         return super().format(record)
 
 # Configure the logger
@@ -31,7 +38,7 @@ console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
 
 # Create formatter
-formatter = CustomFormatter('%(timestamp)s [%(levelname)s] %(module)s.%(funcName)s: %(message)s')
+formatter = CustomFormatter('%(timestamp)s [%(levelname)s] [%(filename)s] %(module)s.%(funcName)s: %(message)s')
 
 # Add formatter to handlers
 file_handler.setFormatter(formatter)
@@ -47,6 +54,14 @@ def log_function_call(func):
     def wrapper(*args, **kwargs):
         func_name = func.__name__
         module_name = func.__module__
+        
+        # Get the file name from the module
+        try:
+            import inspect
+            file_path = inspect.getfile(func)
+            file_name = os.path.basename(file_path)
+        except:
+            file_name = 'unknown'
         
         # Log function entry
         logger.info(f"Starting {func_name}")
