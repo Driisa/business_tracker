@@ -596,3 +596,65 @@
 2025-04-12 15:36:11 [INFO] [logger.py] logger.wrapper: Completed get_mentions in db.py successfully
 2025-04-12 15:36:11 [INFO] [logger.py] logger.log_info: Retrieved 151 mentions for company ID 1
 2025-04-12 15:36:11 [INFO] [logger.py] logger.wrapper: Completed get_mentions in db.py successfully
+2025-04-12 18:31:07 [INFO] [logger.py] logger.log_info: Setup step: Setting up Company Reputation Tracker
+2025-04-12 18:31:08 [INFO] [logger.py] logger.log_info: Setup step: Installing dependencies
+2025-04-12 18:31:17 [INFO] [logger.py] logger.log_info: Setup step: Downloading NLTK data
+2025-04-12 18:31:27 [INFO] [logger.py] logger.log_info: Setup step: Initializing the database
+2025-04-12 18:31:27 [INFO] [logger.py] logger.wrapper: Starting init_db in db.py
+2025-04-12 18:31:27 [INFO] [logger.py] logger.log_info: Database initialized successfully.
+2025-04-12 18:31:27 [INFO] [logger.py] logger.wrapper: Completed init_db in db.py successfully
+2025-04-12 18:31:27 [INFO] [logger.py] logger.log_info: Setup step: Setup completed successfully!
+2025-04-12 18:31:54 [INFO] [logger.py] logger.wrapper: Starting init_db in db.py
+2025-04-12 18:31:54 [INFO] [logger.py] logger.log_info: Database initialized successfully.
+2025-04-12 18:31:54 [INFO] [logger.py] logger.wrapper: Completed init_db in db.py successfully
+2025-04-12 18:31:54 [INFO] [logger.py] logger.wrapper: Starting get_companies in db.py
+2025-04-12 18:31:54 [INFO] [logger.py] logger.wrapper: Starting get_db in db.py
+2025-04-12 18:31:54 [INFO] [logger.py] logger.wrapper: Completed get_db in db.py successfully
+2025-04-12 18:31:54 [INFO] [logger.py] logger.log_info: Retrieved 2 companies from database
+2025-04-12 18:31:54 [INFO] [logger.py] logger.wrapper: Completed get_companies in db.py successfully
+2025-04-12 18:32:32 [INFO] [logger.py] logger.wrapper: Starting init_db in db.py
+2025-04-12 18:32:32 [INFO] [logger.py] logger.log_info: Database initialized successfully.
+2025-04-12 18:32:32 [INFO] [logger.py] logger.wrapper: Completed init_db in db.py successfully
+2025-04-12 18:32:32 [INFO] [logger.py] logger.wrapper: Starting get_companies in db.py
+2025-04-12 18:32:32 [INFO] [logger.py] logger.wrapper: Starting get_db in db.py
+2025-04-12 18:32:32 [INFO] [logger.py] logger.wrapper: Completed get_db in db.py successfully
+2025-04-12 18:32:32 [INFO] [logger.py] logger.log_info: Retrieved 2 companies from database
+2025-04-12 18:32:32 [INFO] [logger.py] logger.wrapper: Completed get_companies in db.py successfully
+2025-04-12 18:32:35 [INFO] [logger.py] logger.wrapper: Starting init_db in db.py
+2025-04-12 18:32:35 [INFO] [logger.py] logger.log_info: Database initialized successfully.
+2025-04-12 18:32:35 [INFO] [logger.py] logger.wrapper: Completed init_db in db.py successfully
+2025-04-12 18:32:35 [INFO] [logger.py] logger.wrapper: Starting get_companies in db.py
+2025-04-12 18:32:35 [INFO] [logger.py] logger.wrapper: Starting get_db in db.py
+2025-04-12 18:32:35 [INFO] [logger.py] logger.wrapper: Completed get_db in db.py successfully
+2025-04-12 18:32:35 [INFO] [logger.py] logger.log_info: Retrieved 2 companies from database
+2025-04-12 18:32:35 [INFO] [logger.py] logger.wrapper: Completed get_companies in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_company in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_db in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_db in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.log_info: Retrieved company: Apple (ID: 1)
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_company in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_mentions in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_db in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_db in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.log_info: Retrieved 151 mentions for company ID 1
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_mentions in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_sentiment_stats in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_db in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_db in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.log_info: Calculated sentiment stats for company ID 1: 59 positive, 0 neutral, 92 negative
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_sentiment_stats in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_mentions in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_db in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_db in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.log_info: Retrieved 151 mentions for company ID 1
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_mentions in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_mentions in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_db in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_db in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_mentions in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Starting get_db in db.py
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_db in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.log_info: Retrieved 151 mentions for company ID 1
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_mentions in db.py successfully
+2025-04-12 18:32:41 [INFO] [logger.py] logger.log_info: Retrieved 151 mentions for company ID 1
+2025-04-12 18:32:41 [INFO] [logger.py] logger.wrapper: Completed get_mentions in db.py successfully

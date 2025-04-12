@@ -3,9 +3,11 @@ import json
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
-from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
-import torch
+import google.generativeai as genai
 from logger import get_logger, log_function_call, log_info, log_error, log_warning
+from bs4 import BeautifulSoup
+import time
+import random
 
 # Get logger
 logger = get_logger()
@@ -15,60 +17,88 @@ load_dotenv()
 
 # API Keys
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Initialize sentiment analysis pipeline with caching to avoid loading the model multiple times
+# Initialize sentiment analysis with caching to avoid initializing multiple times
 _sentiment_analyzer = None
 
 @log_function_call
 def get_sentiment_analyzer():
-    """Get or initialize the sentiment analysis pipeline."""
+    """Get or initialize the Gemini AI sentiment analysis."""
     global _sentiment_analyzer
     if _sentiment_analyzer is None:
         try:
-            log_info("Loading Hugging Face sentiment analysis model...")
+            log_info("Initializing Gemini AI for sentiment analysis...")
             
-            # Option 1: Use the pipeline directly (simpler but loads the model from scratch)
-            # _sentiment_analyzer = pipeline('sentiment-analysis', model="distilbert-base-uncased-finetuned-sst-2-english")
+            # Configure the Gemini API
+            if not GEMINI_API_KEY:
+                raise ValueError("GEMINI_API_KEY is not set in .env file")
+                
+            genai.configure(api_key=GEMINI_API_KEY)
             
-            # Option 2: Load model and tokenizer once (more efficient)
-            model_name = "distilbert-base-uncased-finetuned-sst-2-english"
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForSequenceClassification.from_pretrained(model_name)
+            # Initialize the Gemini model
+            model = genai.GenerativeModel('gemini-pro')
             
-            # Create a custom function to use the loaded model and tokenizer
-            def analyze_with_model(text):
-                inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512, padding=True)
-                with torch.no_grad():
-                    outputs = model(**inputs)
-                scores = torch.nn.functional.softmax(outputs.logits, dim=1)
+            # Create a function to analyze sentiment using Gemini
+            def analyze_with_gemini(text):
+                if not text or len(text.strip()) == 0:
+                    return {"label": "NEUTRAL", "score": 0.0}
                 
-                # This model gives "POSITIVE" or "NEGATIVE" only (no NEUTRAL)
-                # We'll interpret scores close to 0.5 as NEUTRAL
-                highest_score = scores[0].max().item()
-                highest_index = scores[0].argmax().item()
+                # Prompt for sentiment analysis
+                prompt = f"""Analyze the sentiment of the following text and respond with ONLY a JSON object containing:
+                1. 'label': either 'POSITIVE', 'NEGATIVE', or 'NEUTRAL'
+                2. 'score': a number between -1.0 (very negative) and 1.0 (very positive), with 0.0 being neutral
                 
-                # The model uses 0 for NEGATIVE and 1 for POSITIVE
-                if highest_index == 1:  # POSITIVE
-                    label = "POSITIVE"
-                    # Scale from [0.5, 1.0] to [0.0, 1.0]
-                    normalized_score = (highest_score - 0.5) * 2 if highest_score > 0.5 else 0
-                else:  # NEGATIVE
-                    label = "NEGATIVE"
-                    # Scale from [0.5, 1.0] to [-1.0, 0.0]
-                    normalized_score = -(highest_score - 0.5) * 2 if highest_score > 0.5 else 0
+                Text to analyze: "{text}"
                 
-                # Create NEUTRAL zone if confidence is low
-                if 0.4 < highest_score < 0.6:
-                    label = "NEUTRAL"
-                    normalized_score = 0
+                JSON response:"""
                 
-                return {"label": label, "score": normalized_score}
+                try:
+                    response = model.generate_content(prompt)
+                    response_text = response.text
+                    
+                    # Extract JSON from response
+                    try:
+                        # Find JSON in the response
+                        json_start = response_text.find('{')
+                        json_end = response_text.rfind('}')
+                        
+                        if json_start >= 0 and json_end >= 0:
+                            json_str = response_text[json_start:json_end+1]
+                            result = json.loads(json_str)
+                            
+                            # Validate the result format
+                            if 'label' in result and 'score' in result:
+                                # Ensure label is one of the expected values
+                                if result['label'] not in ['POSITIVE', 'NEGATIVE', 'NEUTRAL']:
+                                    result['label'] = 'NEUTRAL'
+                                    
+                                # Ensure score is within expected range
+                                score = float(result['score'])
+                                result['score'] = max(min(score, 1.0), -1.0)
+                                
+                                return result
+                    except Exception as json_error:
+                        log_error(f"Error parsing Gemini response: {json_error}", exc_info=True)
+                    
+                    # If we couldn't parse the JSON or it didn't have the expected format,
+                    # try to determine sentiment from the raw response
+                    if 'positive' in response_text.lower():
+                        return {"label": "POSITIVE", "score": 0.7}
+                    elif 'negative' in response_text.lower():
+                        return {"label": "NEGATIVE", "score": -0.7}
+                    else:
+                        return {"label": "NEUTRAL", "score": 0.0}
+                        
+                except Exception as e:
+                    log_error(f"Error calling Gemini API: {e}", exc_info=True)
+                    return {"label": "NEUTRAL", "score": 0.0}
             
-            _sentiment_analyzer = analyze_with_model
-            log_info("Hugging Face model loaded successfully!")
+            _sentiment_analyzer = analyze_with_gemini
+            log_info("Gemini AI initialized successfully!")
             
         except Exception as e:
-            log_error(f"Error loading Hugging Face model: {e}", exc_info=True)
+            log_error(f"Error initializing Gemini AI: {e}", exc_info=True)
             log_warning("Falling back to basic sentiment analysis...")
             
             # Define a simple function that always returns neutral
@@ -85,6 +115,47 @@ class NewsClient:
     def __init__(self):
         self.api_key = NEWSAPI_KEY
         self.base_url = "https://newsapi.org/v2/everything"
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+    
+    @log_function_call
+    def fetch_article_content(self, url):
+        """Fetch and extract the main content from an article URL using BeautifulSoup."""
+        if not url:
+            return ""
+            
+        try:
+            # Add a small delay to avoid overwhelming the server
+            time.sleep(random.uniform(0.5, 1.5))
+            
+            # Make the request to the article URL
+            response = requests.get(url, headers=self.headers, timeout=10)
+            response.raise_for_status()
+            
+            # Parse the HTML content
+            soup = BeautifulSoup(response.content, 'lxml')
+            
+            # Remove script and style elements
+            for script in soup(["script", "style", "nav", "footer", "header"]):
+                script.decompose()
+                
+            # Get the text content
+            text = soup.get_text(separator=' ', strip=True)
+            
+            # Clean up the text (remove extra whitespace)
+            text = ' '.join(text.split())
+            
+            # Truncate if too long (to avoid issues with API limits)
+            if len(text) > 5000:
+                text = text[:5000]
+                
+            log_info(f"Successfully extracted content from {url} ({len(text)} chars)")
+            return text
+            
+        except Exception as e:
+            log_error(f"Error extracting content from {url}: {e}", exc_info=True)
+            return ""
     
     @log_function_call
     def fetch_mentions(self, company_name, aliases, days=7):
@@ -135,10 +206,21 @@ class NewsClient:
                         except ValueError:
                             published_at = None
                 
+                # Get the article URL
+                url = article.get('url', '')
+                
+                # Extract the full content using BeautifulSoup
+                scraped_content = ""
+                if url:
+                    scraped_content = self.fetch_article_content(url)
+                
+                # Use scraped content if available, otherwise fall back to NewsAPI content
+                content = scraped_content if scraped_content else article.get('description', article.get('content', ''))
+                
                 mention = {
                     'title': article.get('title', 'No title'),
-                    'content': article.get('description', article.get('content', '')),
-                    'url': article.get('url', ''),
+                    'content': content,
+                    'url': url,
                     'source': article.get('source', {}).get('name', 'Unknown'),
                     'published_at': published_at
                 }

@@ -4,12 +4,14 @@ A Dash-powered application that tracks company mentions from news sources, analy
 Features
 ✅ Input company names and aliases
 ✅ Fetch mentions from NewsAPI
-✅ Analyze sentiment with Hugging Face Transformers
+✅ Analyze sentiment with Gemini AI
+✅ Extract full article content with BeautifulSoup
 ✅ Store results in SQLite database
 ✅ Display insights in an interactive Dash dashboard
 ✅ Automatic daily updates via GitHub Actions
 ✅ Sentiment timeline visualization
 ✅ Advanced sentiment metrics
+✅ Comprehensive logging system
 Quick Start
 Easy Setup
 Run the setup script to install dependencies and initialize the database:
@@ -20,11 +22,11 @@ Manual Setup
 Install Dependencies
 bash
 pip install -r requirements.txt
-python -c "import nltk; nltk.download('punkt'); nltk.download('averaged_perceptron_tagger')"
 Set Up API Keys
 Create a .env file in the project root with:
 
 NEWSAPI_KEY=your_newsapi_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 Initialize the Database
 bash
 python db.py
@@ -38,9 +40,9 @@ This application uses GitHub Actions to automatically run the reputation trackin
 
 Setting Up GitHub Actions
 Fork or push this repository to GitHub
-Add your NewsAPI key as a repository secret:
+Add your API keys as repository secrets:
 Go to your repository → Settings → Secrets and variables → Actions
-Add a new repository secret named NEWSAPI_KEY with your API key
+Add new repository secrets named NEWSAPI_KEY and GEMINI_API_KEY with your API keys
 The workflow will:
 
 Run automatically every day at 6:00 AM UTC
@@ -66,13 +68,13 @@ python runner.py
 # Run a manual pipeline update for all companies
 python runner.py --all
 Advanced Sentiment Analysis
-This application uses Hugging Face Transformers for state-of-the-art sentiment analysis:
+This application uses Google's Gemini AI for state-of-the-art sentiment analysis:
 
-Model: DistilBERT fine-tuned on SST-2 dataset
+Model: Gemini Pro for natural language understanding
 Scoring: Range from -1 (very negative) to 1 (very positive)
 Classification: POSITIVE, NEUTRAL, NEGATIVE based on score thresholds
 Timeline: Track sentiment changes over time with trend analysis
-If Hugging Face dependencies cannot be installed on your system, the application will automatically fall back to TextBlob for basic sentiment analysis.
+Content Extraction: Uses BeautifulSoup to extract full article content for better analysis
 
 Project Structure
 company_tracker/
@@ -81,6 +83,7 @@ company_tracker/
 ├── db.py                 # SQLite database models and operations
 ├── runner.py             # Main execution script
 ├── setup.py              # Setup script for easy installation
+├── logger.py             # Logging system for application events
 ├── .github/
 │   └── workflows/
 │       └── daily_tracker.yml  # GitHub Actions workflow
@@ -96,12 +99,16 @@ Sentiment Timeline: Track sentiment changes over time with trend line
 Recent Mentions: View most recent mentions with sentiment highlighting
 Filtered Views: Filter mentions by sentiment and time period
 Sortable Table: Sort and filter the mentions table as needed
+Date Range Selection: Filter data by custom date ranges
 Troubleshooting
-If you encounter issues installing the Hugging Face dependencies:
+If you encounter issues with the API connections:
 
-Try running python setup.py which will offer to install minimal dependencies
-Or manually install the minimal requirements:
+Verify your API keys are correctly set in the .env file
+Check the logs folder for detailed error information
+Ensure you have internet connectivity for API requests
+For minimal installation without BeautifulSoup and other optional dependencies:
+
 bash
 pip install dash dash-bootstrap-components plotly sqlalchemy requests python-dotenv pandas
-The application will automatically fall back to simpler sentiment analysis methods if advanced models are not available.
+The application will automatically fall back to simpler content extraction and analysis methods if advanced dependencies are not available.
 
