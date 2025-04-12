@@ -132,8 +132,14 @@ def create_sentiment_chart(company_id):
     return None, stats
 
 # Function to create sentiment timeline chart
-def create_sentiment_timeline(company_id):
-    """Create a timeline of sentiment scores."""
+def create_sentiment_timeline(company_id, start_date=None, end_date=None):
+    """Create a timeline of sentiment scores.
+    
+    Args:
+        company_id: The company ID
+        start_date: Optional start date for filtering
+        end_date: Optional end date for filtering
+    """
     # Get all mentions
     mentions = db.get_mentions(company_id)
     
@@ -151,6 +157,10 @@ def create_sentiment_timeline(company_id):
     timeline_data = []
     for mention in mentions:
         if mention.published_at:
+            # Apply date range filter if provided
+            if start_date and end_date:
+                if not (start_date <= mention.published_at < end_date):
+                    continue
             timeline_data.append({
                 "date": mention.published_at,
                 "score": mention.sentiment_score,
@@ -518,7 +528,19 @@ def update_company_content(company_id):
                 value="all",
                 clearable=False
             )
-        ], md=3)
+        ], md=3),
+        dbc.Col([
+            html.Label("Date Range"),
+            dcc.DatePickerRange(
+                id="date-range-filter",
+                min_date_allowed=datetime(2000, 1, 1),
+                max_date_allowed=datetime.now(),
+                initial_visible_month=datetime.now(),
+                end_date=datetime.now(),
+                start_date=datetime.now() - timedelta(days=30),
+                display_format="YYYY-MM-DD"
+            )
+        ], md=6)
     ], className="mb-3")
     
     # Prepare the mentions table
@@ -564,7 +586,6 @@ def update_company_content(company_id):
                 html.H4("Sentiment Timeline"),
                 dcc.Graph(
                     id="sentiment-timeline-chart",
-                    figure=create_sentiment_timeline(company_id),
                     config={'displayModeBar': False}
                 )
             ], className="mb-4")
@@ -576,14 +597,38 @@ def update_company_content(company_id):
         mentions_table
     ])
 
+# Callback to update the sentiment timeline chart based on date range
+@callback(
+    Output("sentiment-timeline-chart", "figure"),
+    Input("current-company-id", "data"),
+    Input("date-range-filter", "start_date"),
+    Input("date-range-filter", "end_date")
+)
+def update_sentiment_timeline(company_id, start_date, end_date):
+    if not company_id:
+        return px.line(title="No company selected")
+    
+    # Convert string dates to datetime objects if they exist
+    start_date_obj = None
+    end_date_obj = None
+    
+    if start_date and end_date:
+        start_date_obj = datetime.strptime(start_date.split('T')[0], '%Y-%m-%d')
+        end_date_obj = datetime.strptime(end_date.split('T')[0], '%Y-%m-%d') + timedelta(days=1)  # Include the end date
+    
+    # Create the timeline with date filters
+    return create_sentiment_timeline(company_id, start_date_obj, end_date_obj)
+
 # Callback to handle filtering the mentions table
 @callback(
     Output("filtered-mentions-table", "children"),
     Input("current-company-id", "data"),
     Input("sentiment-filter", "value"),
-    Input("time-filter", "value")
+    Input("time-filter", "value"),
+    Input("date-range-filter", "start_date"),
+    Input("date-range-filter", "end_date")
 )
-def update_mentions_table(company_id, sentiment, time_period):
+def update_mentions_table(company_id, sentiment, time_period, start_date, end_date):
     if not company_id:
         return html.P("No company selected.")
     
@@ -594,11 +639,16 @@ def update_mentions_table(company_id, sentiment, time_period):
     if sentiment != "all":
         mentions = [m for m in mentions if m.sentiment == sentiment]
     
-    # Apply time filter
+    # Apply time filter (dropdown) or date range filter
     if time_period != "all":
         days = int(time_period)
         cutoff_date = datetime.now() - timedelta(days=days)
         mentions = [m for m in mentions if m.published_at and m.published_at >= cutoff_date]
+    elif start_date and end_date:
+        # Convert string dates to datetime objects
+        start_date = datetime.strptime(start_date.split('T')[0], '%Y-%m-%d')
+        end_date = datetime.strptime(end_date.split('T')[0], '%Y-%m-%d') + timedelta(days=1)  # Include the end date
+        mentions = [m for m in mentions if m.published_at and start_date <= m.published_at < end_date]
     
     if not mentions:
         return html.P("No mentions match the selected filters.")
