@@ -19,9 +19,19 @@ class CustomFormatter(logging.Formatter):
         
         # Extract filename from pathname if available
         if hasattr(record, 'pathname') and record.pathname:
+            # Get the absolute path of the project root directory
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            
+            # Calculate relative path if the pathname starts with project root
+            if record.pathname.startswith(project_root):
+                record.rel_pathname = os.path.relpath(record.pathname, project_root)
+            else:
+                record.rel_pathname = record.pathname
+                
             record.filename = os.path.basename(record.pathname)
         else:
             record.filename = 'unknown'
+            record.rel_pathname = 'unknown'
             
         return super().format(record)
 
@@ -38,7 +48,7 @@ console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.INFO)
 
 # Create formatter
-formatter = CustomFormatter('%(timestamp)s [%(levelname)s] [%(filename)s] %(module)s.%(funcName)s: %(message)s')
+formatter = CustomFormatter('%(timestamp)s [%(levelname)s] [%(rel_pathname)s] %(module)s.%(funcName)s: %(message)s')
 
 # Add formatter to handlers
 file_handler.setFormatter(formatter)
@@ -55,28 +65,36 @@ def log_function_call(func):
         func_name = func.__name__
         module_name = func.__module__
         
-        # Get the file name from the module
+        # Get the file name and path from the module
         try:
             import inspect
             file_path = inspect.getfile(func)
             file_name = os.path.basename(file_path)
+            
+            # Get relative path from project root
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            if file_path.startswith(project_root):
+                rel_path = os.path.relpath(file_path, project_root)
+            else:
+                rel_path = file_path
         except:
             file_name = 'unknown'
+            rel_path = 'unknown'
         
         # Log function entry
-        logger.info(f"Starting {func_name}")
+        logger.info(f"Starting {func_name} in {rel_path}")
         
         try:
             # Call the original function
             result = func(*args, **kwargs)
             
             # Log function exit
-            logger.info(f"Completed {func_name} successfully")
+            logger.info(f"Completed {func_name} in {rel_path} successfully")
             
             return result
         except Exception as e:
             # Log the exception
-            logger.error(f"Error in {func_name}: {str(e)}")
+            logger.error(f"Error in {func_name} ({rel_path}): {str(e)}")
             raise
     
     return wrapper
