@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
 import torch
+from logger import get_logger, log_function_call, log_info, log_error, log_warning
+
+# Get logger
+logger = get_logger()
 
 # Load environment variables
 load_dotenv()
@@ -15,12 +19,13 @@ NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")
 # Initialize sentiment analysis pipeline with caching to avoid loading the model multiple times
 _sentiment_analyzer = None
 
+@log_function_call
 def get_sentiment_analyzer():
     """Get or initialize the sentiment analysis pipeline."""
     global _sentiment_analyzer
     if _sentiment_analyzer is None:
         try:
-            print("Loading Hugging Face sentiment analysis model...")
+            log_info("Loading Hugging Face sentiment analysis model...")
             
             # Option 1: Use the pipeline directly (simpler but loads the model from scratch)
             # _sentiment_analyzer = pipeline('sentiment-analysis', model="distilbert-base-uncased-finetuned-sst-2-english")
@@ -60,11 +65,11 @@ def get_sentiment_analyzer():
                 return {"label": label, "score": normalized_score}
             
             _sentiment_analyzer = analyze_with_model
-            print("Hugging Face model loaded successfully!")
+            log_info("Hugging Face model loaded successfully!")
             
         except Exception as e:
-            print(f"Error loading Hugging Face model: {e}")
-            print("Falling back to basic sentiment analysis...")
+            log_error(f"Error loading Hugging Face model: {e}", exc_info=True)
+            log_warning("Falling back to basic sentiment analysis...")
             
             # Define a simple function that always returns neutral
             def fallback_analyzer(text):
@@ -81,9 +86,11 @@ class NewsClient:
         self.api_key = NEWSAPI_KEY
         self.base_url = "https://newsapi.org/v2/everything"
     
+    @log_function_call
     def fetch_mentions(self, company_name, aliases, days=7):
         """Fetch mentions of a company from NewsAPI."""
         if not self.api_key:
+            log_error("NewsAPI key is not set")
             raise ValueError("NewsAPI key is not set. Please set NEWSAPI_KEY in .env file.")
         
         # Combine company name and aliases for search
@@ -112,7 +119,7 @@ class NewsClient:
             data = response.json()
             
             if data.get('status') != 'ok':
-                print(f"Error from NewsAPI: {data.get('message', 'Unknown error')}")
+                log_error(f"Error from NewsAPI: {data.get('message', 'Unknown error')}")
                 return []
             
             # Process and normalize results
@@ -137,17 +144,19 @@ class NewsClient:
                 }
                 mentions.append(mention)
             
-            print(f"Found {len(mentions)} mentions for {company_name}")
+            log_info(f"Found {len(mentions)} mentions for {company_name}")
             return mentions
             
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching mentions: {e}")
+            log_error(f"Error fetching mentions: {e}", exc_info=True)
             return []
 
 
+@log_function_call
 def analyze_sentiment(text):
     """Analyze sentiment using Hugging Face Transformers."""
     if not text:
+        log_info("Empty text provided for sentiment analysis, returning NEUTRAL")
         return {"label": "NEUTRAL", "score": 0.0}
     
     try:
@@ -162,12 +171,14 @@ def analyze_sentiment(text):
         
         return result
     except Exception as e:
-        print(f"Error analyzing sentiment: {e}")
+        log_error(f"Error analyzing sentiment: {e}", exc_info=True)
         return {"label": "NEUTRAL", "score": 0.0}
 
 
+@log_function_call
 def analyze_mentions(mentions):
     """Analyze sentiment for a list of mentions."""
+    log_info(f"Analyzing sentiment for {len(mentions)} mentions")
     enriched_mentions = []
     
     # Load analyzer once for all mentions
@@ -192,20 +203,27 @@ def analyze_mentions(mentions):
 
 # Test functionality when run directly
 if __name__ == "__main__":
+    # Initialize logging
+    from logger import log_startup, log_shutdown
+    log_startup()
+    
     # Test NewsAPI client
     news_client = NewsClient()
     test_mentions = news_client.fetch_mentions("Tesla", ["TSLA", "Tesla Inc."], days=3)
-    print(f"Found {len(test_mentions)} mentions")
+    log_info(f"Found {len(test_mentions)} mentions")
     
     if test_mentions:
         # Test sentiment analysis
         sentiment_result = analyze_sentiment(test_mentions[0]["title"])
-        print(f"Sentiment: {sentiment_result['label']}, Score: {sentiment_result['score']}")
+        log_info(f"Sentiment: {sentiment_result['label']}, Score: {sentiment_result['score']}")
         
         # Test batch sentiment analysis
         enriched_mentions = analyze_mentions(test_mentions[:2])
-        print(f"Analyzed {len(enriched_mentions)} mentions")
+        log_info(f"Analyzed {len(enriched_mentions)} mentions")
         for mention in enriched_mentions:
-            print(f"Title: {mention['title'][:50]}...")
-            print(f"Sentiment: {mention['sentiment']}, Score: {mention['sentiment_score']}")
-            print("---")
+            log_info(f"Title: {mention['title'][:50]}...")
+            log_info(f"Sentiment: {mention['sentiment']}, Score: {mention['sentiment_score']}")
+            log_info("---")
+    
+    # Log shutdown
+    log_shutdown()

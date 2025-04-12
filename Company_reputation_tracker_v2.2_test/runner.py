@@ -9,16 +9,21 @@ import json
 from datetime import datetime
 import db  # Import db instead of database
 from api_client import NewsClient, analyze_mentions  # Adjust import to match your filename
+from logger import get_logger, log_function_call, log_info, log_error, log_warning, log_startup, log_shutdown
 
+# Get logger
+logger = get_logger()
+
+@log_function_call
 def process_company(company_id):
     """Process a single company."""
     # Get company data
     company = db.get_company(company_id)
     if not company:
-        print(f"Company with ID {company_id} not found.")
+        log_error(f"Company with ID {company_id} not found.")
         return None
     
-    print(f"Processing company: {company.name} (ID: {company.id})")
+    log_info(f"Processing company: {company.name} (ID: {company.id})")
     
     # Get company aliases
     aliases = db.get_company_aliases(company_id)
@@ -27,7 +32,7 @@ def process_company(company_id):
     news_client = NewsClient()
     try:
         mentions = news_client.fetch_mentions(company.name, aliases)
-        print(f"Found {len(mentions)} mentions for {company.name}")
+        log_info(f"Found {len(mentions)} mentions for {company.name}")
         
         if not mentions:
             return {
@@ -38,7 +43,7 @@ def process_company(company_id):
                 "message": "No new mentions found."
             }
     except Exception as e:
-        print(f"Error fetching mentions: {str(e)}")
+        log_error(f"Error fetching mentions: {str(e)}", exc_info=True)
         return {
             "company_name": company.name,
             "company_id": company.id,
@@ -49,9 +54,9 @@ def process_company(company_id):
     # 2. Analyze sentiment
     try:
         enriched_mentions = analyze_mentions(mentions)
-        print(f"Completed sentiment analysis for {len(enriched_mentions)} mentions")
+        log_info(f"Completed sentiment analysis for {len(enriched_mentions)} mentions")
     except Exception as e:
-        print(f"Error analyzing sentiment: {str(e)}")
+        log_error(f"Error analyzing sentiment: {str(e)}", exc_info=True)
         return {
             "company_name": company.name,
             "company_id": company.id,
@@ -84,9 +89,9 @@ def process_company(company_id):
                 filtered_mentions.append(mention)
 
         mentions_added = db.add_mentions(company_id, filtered_mentions)
-        print(f"Added {mentions_added} high-quality mentions to the database")
+        log_info(f"Added {mentions_added} high-quality mentions to the database")
     except Exception as e:
-        print(f"Error saving mentions: {str(e)}")
+        log_error(f"Error saving mentions: {str(e)}", exc_info=True)
         return {
             "company_name": company.name,
             "company_id": company.id,

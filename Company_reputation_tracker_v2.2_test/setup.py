@@ -8,12 +8,20 @@ import os
 import subprocess
 import sys
 import time
+from colorama import init, Fore, Style
+from logger import get_logger, log_function_call, log_info, log_error, log_warning
+
+# Get logger
+logger = get_logger()
+
+# Initialize colorama
+init()
 
 def print_step(message):
-    """Print a step message with formatting."""
-    print("\n" + "=" * 80)
-    print(f" {message}")
-    print("=" * 80)
+    """Print a step message with color."""
+    print(f"\n{Fore.BLUE}==>{Style.RESET_ALL} {Fore.WHITE}{message}{Style.RESET_ALL}")
+    # Also log the step
+    log_info(f"Setup step: {message}")
 
 def main():
     """Run the setup process."""

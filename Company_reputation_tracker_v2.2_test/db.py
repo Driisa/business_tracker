@@ -3,6 +3,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from datetime import datetime
 from datetime import timedelta
+from logger import get_logger, log_function_call, log_info, log_error, log_warning
+
+# Get logger
+logger = get_logger()
 
 # Create SQLAlchemy Base
 Base = declarative_base()
@@ -50,11 +54,13 @@ class Mention(Base):
     def __repr__(self):
         return f"<Mention(id={self.id}, title='{self.title[:20]}...', sentiment='{self.sentiment}')>"
 
+@log_function_call
 def init_db():
     """Initialize the database, creating all tables."""
     Base.metadata.create_all(bind=engine)
-    print("Database initialized successfully.")
+    log_info("Database initialized successfully.")
 
+@log_function_call
 def get_db():
     """Get a database session."""
     db = db_session()
@@ -64,6 +70,7 @@ def get_db():
         db.close()
 
 # Database utility functions
+@log_function_call
 def add_company(name, aliases):
     """Add a new company to the database."""
     db = get_db()
@@ -71,6 +78,7 @@ def add_company(name, aliases):
         # Check if company already exists
         existing = db.query(Company).filter(Company.name == name).first()
         if existing:
+            log_info(f"Company '{name}' already exists with ID {existing.id}")
             return existing
         
         # Format aliases as comma-separated string
@@ -80,21 +88,31 @@ def add_company(name, aliases):
         company = Company(name=name, aliases=aliases_str)
         db.add(company)
         db.commit()
+        log_info(f"Added new company: {name} with ID {company.id}")
         return company
     except Exception as e:
         db.rollback()
-        print(f"Error adding company: {e}")
+        log_error(f"Error adding company: {e}", exc_info=True)
         return None
 
+@log_function_call
 def get_companies():
     """Get all companies."""
     db = get_db()
-    return db.query(Company).all()
+    companies = db.query(Company).all()
+    log_info(f"Retrieved {len(companies)} companies from database")
+    return companies
 
+@log_function_call
 def get_company(company_id):
     """Get a company by ID."""
     db = get_db()
-    return db.query(Company).filter(Company.id == company_id).first()
+    company = db.query(Company).filter(Company.id == company_id).first()
+    if company:
+        log_info(f"Retrieved company: {company.name} (ID: {company.id})")
+    else:
+        log_warning(f"Company with ID {company_id} not found")
+    return company
 
 def get_company_aliases(company_id):
     """Get aliases for a company."""
@@ -112,6 +130,7 @@ def add_mentions(company_id, mentions):
         # Check if company exists
         company = db.query(Company).filter(Company.id == company_id).first()
         if not company:
+            log_warning(f"Cannot add mentions: Company with ID {company_id} not found")
             return 0
         
         for mention in mentions:
@@ -146,12 +165,14 @@ def add_mentions(company_id, mentions):
                 count += 1
         
         db.commit()
+        log_info(f"Added {count} new mentions for company ID {company_id}")
         return count
     except Exception as e:
         db.rollback()
-        print(f"Error adding mentions: {e}")
+        log_error(f"Error adding mentions: {e}", exc_info=True)
         return 0
 
+@log_function_call
 def get_mentions(company_id, sentiment=None):
     """Get mentions for a company."""
     db = get_db()
@@ -163,8 +184,11 @@ def get_mentions(company_id, sentiment=None):
     # Order by published date (newest first)
     query = query.order_by(Mention.published_at.desc())
     
-    return query.all()
+    mentions = query.all()
+    log_info(f"Retrieved {len(mentions)} mentions for company ID {company_id}")
+    return mentions
 
+@log_function_call
 def get_sentiment_stats(company_id):
     """Get sentiment statistics for a company."""
     db = get_db()
@@ -196,8 +220,10 @@ def get_sentiment_stats(company_id):
     if score_count > 0:
         stats["AVG_SCORE"] = total_score / score_count
     
+    log_info(f"Calculated sentiment stats for company ID {company_id}: {stats['POSITIVE']} positive, {stats['NEUTRAL']} neutral, {stats['NEGATIVE']} negative")
     return stats
 
+@log_function_call
 def get_sentiment_timeline_data(company_id, days=None):
     """Get sentiment data over time for a company.
     
