@@ -145,10 +145,6 @@ class NewsClient:
             
             # Clean up the text (remove extra whitespace)
             text = ' '.join(text.split())
-            
-            # Truncate if too long (to avoid issues with API limits)
-            if len(text) > 5000:
-                text = text[:5000]
                 
             log_info(f"Successfully extracted content from {url} ({len(text)} chars)")
             return text
@@ -211,11 +207,9 @@ class NewsClient:
                 
                 # Extract the full content using BeautifulSoup
                 scraped_content = ""
-                if url:
-                    scraped_content = self.fetch_article_content(url)
                 
-                # Use scraped content if available, otherwise fall back to NewsAPI content
-                content = scraped_content if scraped_content else article.get('description', article.get('content', ''))
+                scraped_content = self.fetch_article_content(url)
+            
                 
                 mention = {
                     'title': article.get('title', 'No title'),
