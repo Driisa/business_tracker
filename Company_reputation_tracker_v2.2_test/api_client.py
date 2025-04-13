@@ -213,7 +213,7 @@ class NewsClient:
                 
                 mention = {
                     'title': article.get('title', 'No title'),
-                    'content': content,
+                    'content': scraped_content,
                     'url': url,
                     'source': article.get('source', {}).get('name', 'Unknown'),
                     'published_at': published_at
