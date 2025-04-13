@@ -123,6 +123,7 @@ class NewsClient:
     def fetch_article_content(self, url):
         """Fetch and extract the main content from an article URL using BeautifulSoup."""
         if not url:
+            log_warning("Empty URL provided for content fetching")
             return ""
             
         try:
@@ -130,27 +131,72 @@ class NewsClient:
             time.sleep(random.uniform(0.5, 1.5))
             
             # Make the request to the article URL
-            response = requests.get(url, headers=self.headers, timeout=10)
+            response = requests.get(url, headers=self.headers, timeout=20)
             response.raise_for_status()
+            
+            # Check content type
+            content_type = response.headers.get('content-type', '')
+            if 'application/json' in content_type:
+                # Handle JSON content
+                try:
+                    json_data = response.json()
+                    # Try to extract meaningful text from JSON
+                    text = ' '.join(str(v) for v in json_data.values() if isinstance(v, (str, int, float)))
+                    if text:
+                        log_info(f"Successfully extracted content from JSON response ({len(text)} chars)")
+                        return text
+                except json.JSONDecodeError:
+                    log_warning(f"Failed to parse JSON content from {url}")
             
             # Parse the HTML content
             soup = BeautifulSoup(response.content, 'lxml')
             
-            # Remove script and style elements
-            for script in soup(["script", "style", "nav", "footer", "header"]):
-                script.decompose()
-                
-            # Get the text content
-            text = soup.get_text(separator=' ', strip=True)
+            # Remove unwanted elements
+            for element in soup(["script", "style", "nav", "footer", "header", "iframe", "noscript", "meta", "link"]):
+                element.decompose()
             
-            # Clean up the text (remove extra whitespace)
-            text = ' '.join(text.split())
+            # Try to find the main content
+            main_content = None
+            
+            # Try common article content selectors
+            selectors = [
+                'article',  # Common article tag
+                '.article-content',  # Common class
+                '.post-content',
+                '.entry-content',
+                '#content',
+                'main',
+                '.story-body',
+                '.article-body'
+            ]
+            
+            for selector in selectors:
+                main_content = soup.select_one(selector)
+                if main_content:
+                    break
+            
+            # If no specific content found, use the body
+            if not main_content:
+                main_content = soup.body or soup
+            
+            # Get the text content
+            text = main_content.get_text(separator=' ', strip=True)
+            
+            # Clean up the text
+            text = ' '.join(text.split())  # Remove extra whitespace
+            
+            if not text or len(text) < 50:
+                log_warning(f"Extracted content from {url} is too short or empty")
+                return ""
                 
             log_info(f"Successfully extracted content from {url} ({len(text)} chars)")
             return text
             
+        except requests.exceptions.RequestException as e:
+            log_error(f"Request error for {url}: {str(e)}", exc_info=True)
+            return ""
         except Exception as e:
-            log_error(f"Error extracting content from {url}: {e}", exc_info=True)
+            log_error(f"Error extracting content from {url}: {str(e)}", exc_info=True)
             return ""
     
     @log_function_call
@@ -175,56 +221,78 @@ class NewsClient:
             'to': to_date,
             'language': 'en',
             'sortBy': 'publishedAt',
-            'apiKey': self.api_key
+            'apiKey': self.api_key,
+            'pageSize': 100  # Maximum allowed by NewsAPI
         }
         
         try:
             # Make API request
-            response = requests.get(self.base_url, params=params)
+            response = requests.get(self.base_url, params=params, timeout=30)
             response.raise_for_status()
             
             data = response.json()
             
             if data.get('status') != 'ok':
-                log_error(f"Error from NewsAPI: {data.get('message', 'Unknown error')}")
+                error_message = data.get('message', 'Unknown error')
+                log_error(f"Error from NewsAPI: {error_message}")
                 return []
             
             # Process and normalize results
             mentions = []
             for article in data.get('articles', []):
-                published_at = None
-                if article.get('publishedAt'):
-                    try:
-                        published_at = datetime.strptime(article['publishedAt'], '%Y-%m-%dT%H:%M:%SZ')
-                    except ValueError:
+                try:
+                    # Parse published date
+                    published_at = None
+                    if article.get('publishedAt'):
                         try:
-                            published_at = datetime.strptime(article['publishedAt'], '%Y-%m-%dT%H:%M:%S.%fZ')
+                            published_at = datetime.strptime(article['publishedAt'], '%Y-%m-%dT%H:%M:%SZ')
                         except ValueError:
-                            published_at = None
-                
-                # Get the article URL
-                url = article.get('url', '')
-                
-                # Extract the full content using BeautifulSoup
-                scraped_content = ""
-                
-                scraped_content = self.fetch_article_content(url)
+                            try:
+                                published_at = datetime.strptime(article['publishedAt'], '%Y-%m-%dT%H:%M:%S.%fZ')
+                            except ValueError:
+                                log_warning(f"Could not parse date: {article['publishedAt']}")
+                                continue
+                    
+                    # Get the article URL
+                    url = article.get('url', '')
+                    if not url:
+                        log_warning("Article has no URL, skipping")
+                        continue
+                    
+                    # Extract the full content
+                    content = self.fetch_article_content(url)
+                    if not content:
+                        log_warning(f"Could not extract content from {url}, skipping")
+                        continue
+                    
+                    # Create mention object
+                    mention = {
+                        'title': article.get('title', 'No title').strip(),
+                        'content': content,
+                        'url': url,
+                        'source': article.get('source', {}).get('name', 'Unknown'),
+                        'published_at': published_at
+                    }
+                    
+                    # Validate mention
+                    if len(mention['title']) < 5 or len(mention['content']) < 50:
+                        log_warning(f"Skipping mention with insufficient content: {url}")
+                        continue
+                    
+                    mentions.append(mention)
+                    
+                except Exception as e:
+                    log_error(f"Error processing article: {str(e)}", exc_info=True)
+                    continue
             
-                
-                mention = {
-                    'title': article.get('title', 'No title'),
-                    'content': scraped_content,
-                    'url': url,
-                    'source': article.get('source', {}).get('name', 'Unknown'),
-                    'published_at': published_at
-                }
-                mentions.append(mention)
-            
-            log_info(f"Found {len(mentions)} mentions for {company_name}")
+            log_info(f"Found {len(mentions)} valid mentions for {company_name}")
             return mentions
             
         except requests.exceptions.RequestException as e:
-            log_error(f"Error fetching mentions: {e}", exc_info=True)
+            log_error(f"Error fetching mentions: {str(e)}", exc_info=True)
+            return []
+        except Exception as e:
+            log_error(f"Unexpected error fetching mentions: {str(e)}", exc_info=True)
             return []
 
 
