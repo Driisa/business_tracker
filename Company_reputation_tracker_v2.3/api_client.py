@@ -264,7 +264,24 @@ class NewsClient:
                 # Extract the full content using BeautifulSoup
                 scraped_content = ""
                 
+                # Try to get content from the article URL using BeautifulSoup
                 scraped_content = self.fetch_article_content(url)
+                
+                # If BeautifulSoup returns empty content, use NewsAPI content as fallback
+                if not scraped_content or scraped_content.strip() == "":
+                    # Use description or content from NewsAPI as fallback
+                    api_content = article.get('content', "")
+                    api_description = article.get('description', "")
+                    
+                    # Prefer content over description if available
+                    if api_content and len(api_content) > 10:  # Ensure it's not just a short snippet
+                        scraped_content = api_content
+                        log_info(f"Using NewsAPI content as fallback for {url}")
+                    elif api_description and len(api_description) > 10:
+                        scraped_content = api_description
+                        log_info(f"Using NewsAPI description as fallback for {url}")
+                    else:
+                        log_warning(f"No content available for {url} from either scraping or NewsAPI")
             
                 mention = {
                     'title': article.get('title', 'No title'),
